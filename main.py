@@ -24,8 +24,8 @@ class Menu(Rect):
             if type(self.parent) != Menu:
                 raise TypeError(f"parent must be of type Menu, not {self.parent.__class__.__name__}")
             
-            self.centerX = (parent.centerX - self.width/2) + self.centerX
-            self.centerY = parent.top + self.centerY
+            self.centerX = (self.parent.centerX - self.width/2) + self.centerX
+            self.centerY = self.parent.top + self.centerY
             
             self.textValue = textValue
             self.textFill  = textFill
@@ -47,9 +47,9 @@ class Menu(Rect):
                 visible=self.textIsVisible
             )
             
-        def addEventListener(self, x, y, onclick=None) -> None:
+        def addEventListener(self, x, y, onclick) -> None:
             if callable(onclick) == False:
-                raise TypeError(f"onclick must be a function, not {onclick.__class__.__name__}")
+                raise TypeError(f"onclick should be a function, not {onclick.__class__.__name__}")
             
             if self.contains(x, y):
                 onclick()
@@ -68,15 +68,21 @@ class Core:
         self.startingPsi  = startingPsi
     
     class Laser:
-        def __init__(self, parent, level = 2):
+        def __init__(self, parent, level=2):
             self.parent = parent
-            
             self.level = level
         
         class LaserControlButton(Menu.Button):
-            def __init__(self, parentLaser, *args, **kwargs):
+            def __init__(self, parent, *args, level=None, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.parentLaser = parentLaser
+                self.parent = parent
+                
+                self.level = level
+                if type(self.level) != int:
+                    raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
+
+            def setParentLevel(self) -> None:
+                self.parent.level = self.level
 
 #******************#
 
@@ -125,7 +131,6 @@ nav_CoreMonitoring = Menu.Button(
     textValue="Core Monitoring",
     textIsBold=True
 )
-
 
 topbarDivider1 = Line(
     nav_ControlRoom.right+2, nav_ControlRoom.top,
@@ -204,7 +209,6 @@ Sprite_Core = Group( coreInner, coreOuter, coreOuterRim, coreHover )
 
 CoreMonitoring = Group( Sprite_Core )
 
-
 ## Control Room
 ### Panels
 #### Lasers
@@ -218,6 +222,8 @@ laser3 = Core.Laser(
     core
 )
 
+Lasers = ( laser1, laser2, laser3 )
+
 #### Laser Control
 
 def LCPButtonArgs() -> List:
@@ -226,14 +232,15 @@ def LCPButtonArgs() -> List:
     ]
     return args
 
-def LCPButtonKwargs(text: str = "", border = rgb(60,60,60)) -> Dict:
+def LCPButtonKwargs(text: str = "", border = rgb(60,60,60), level: int|None = None) -> Dict:
     kwargs = {
         "fill": rgb(80,80,80),
         "border": border,
         "textValue": text,
         "textFill": border,
         "textSize": 10,
-        "textIsBold": True
+        "textIsBold": True,
+        "level": level
     }
     
     if text == "Minimum":
@@ -245,16 +252,18 @@ def LCPButtonKwargs(text: str = "", border = rgb(60,60,60)) -> Dict:
 menu_LaserControlPanel = Menu(
     10, 40,
     215, 140,
-    fill=rgb(190,190,190),
+    fill=rgb(170,170,170),
     border=rgb(40,40,40)
 )
+
+LCPnMenuFill = rgb(200,200,200)
 
 ##### LC Panel 1
 
 menu_LCP1 = Menu(
     -70, 5,
     65, 130,
-    fill=None,
+    fill=LCPnMenuFill,
     border=rgb(0,0,0),
     parent=menu_LaserControlPanel
 )
@@ -269,35 +278,35 @@ LCP1_l1 = Core.Laser.LaserControlButton(
     menu_LCP1,
     0, 30,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Minimum")
+    **LCPButtonKwargs(text="Minimum", level=1)
 )
 LCP1_l2 = Core.Laser.LaserControlButton(
     laser1,
     menu_LCP1,
     0, 50,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98))
+    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98), level=2)
 )
 LCP1_l3 = Core.Laser.LaserControlButton(
     laser1,
     menu_LCP1,
     0, 70,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90))
+    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90), level=3)
 )
 LCP1_l4 = Core.Laser.LaserControlButton(
     laser1,
     menu_LCP1,
     0, 90,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41))
+    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41), level=4)
 )
 LCP1_l5 = Core.Laser.LaserControlButton(
     laser1,
     menu_LCP1,
     0, 110,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70))
+    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70), level=5)
 )
 
 LCP1 = Group(
@@ -315,7 +324,7 @@ LCP1 = Group(
 menu_LCP2 = Menu(
     0, 5,
     65, 130,
-    fill=None,
+    fill=LCPnMenuFill,
     border=rgb(0,0,0),
     parent=menu_LaserControlPanel
 )
@@ -330,35 +339,35 @@ LCP2_l1 = Core.Laser.LaserControlButton(
     menu_LCP2,
     0, 30,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Minimum")
+    **LCPButtonKwargs(text="Minimum", level=1)
 )
 LCP2_l2 = Core.Laser.LaserControlButton(
     laser2,
     menu_LCP2,
     0, 50,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98))
+    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98), level=2)
 )
 LCP2_l3 = Core.Laser.LaserControlButton(
     laser2,
     menu_LCP2,
     0, 70,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90))
+    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90), level=3)
 )
 LCP2_l4 = Core.Laser.LaserControlButton(
     laser2,
     menu_LCP2,
     0, 90,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41))
+    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41), level=4)
 )
 LCP2_l5 = Core.Laser.LaserControlButton(
     laser2,
     menu_LCP2,
     0, 110,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70))
+    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70), level=5)
 )
 
 LCP2 = Group( 
@@ -376,7 +385,7 @@ LCP2 = Group(
 menu_LCP3 = Menu(
     70, 5,
     65, 130,
-    fill=None,
+    fill=LCPnMenuFill,
     border=rgb(0,0,0),
     parent=menu_LaserControlPanel
 )
@@ -391,35 +400,35 @@ LCP3_l1 = Core.Laser.LaserControlButton(
     menu_LCP3,
     0, 30,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Minimum")
+    **LCPButtonKwargs(text="Minimum", level=1)
 )
 LCP3_l2 = Core.Laser.LaserControlButton(
     laser3,
     menu_LCP3,
     0, 50,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98))
+    **LCPButtonKwargs(text="Level 2", border=rgb(255,248,98), level=2)
 )
 LCP3_l3 = Core.Laser.LaserControlButton(
     laser3,
     menu_LCP3,
     0, 70,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90))
+    **LCPButtonKwargs(text="Level 3", border=rgb(255,200,90), level=3)
 )
 LCP3_l4 = Core.Laser.LaserControlButton(
     laser3,
     menu_LCP3,
     0, 90,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41))
+    **LCPButtonKwargs(text="Level 4", border=rgb(255,140,41), level=4)
 )
 LCP3_l5 = Core.Laser.LaserControlButton(
     laser3,
     menu_LCP3,
     0, 110,
     *LCPButtonArgs(),
-    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70))
+    **LCPButtonKwargs(text="Maximum", border=rgb(255,70,70), level=5)
 )
 
 LCP3 = Group(
@@ -465,8 +474,25 @@ def onMousePress(x, y):
     
     # Control Room
     ## LCP
-    
-    
+    ### Laser 1
+    LCP1_l1.addEventListener(x, y, LCP1_l1.setParentLevel)
+    LCP1_l2.addEventListener(x, y, LCP1_l2.setParentLevel)
+    LCP1_l3.addEventListener(x, y, LCP1_l3.setParentLevel)
+    LCP1_l4.addEventListener(x, y, LCP1_l4.setParentLevel)
+    LCP1_l5.addEventListener(x, y, LCP1_l5.setParentLevel)
+    ### Laser 2
+    LCP2_l1.addEventListener(x, y, LCP2_l1.setParentLevel)
+    LCP2_l2.addEventListener(x, y, LCP2_l2.setParentLevel)
+    LCP2_l3.addEventListener(x, y, LCP2_l3.setParentLevel)
+    LCP2_l4.addEventListener(x, y, LCP2_l4.setParentLevel)
+    LCP2_l5.addEventListener(x, y, LCP2_l5.setParentLevel)
+    ### Laser 3
+    LCP3_l1.addEventListener(x, y, LCP3_l1.setParentLevel)
+    LCP3_l2.addEventListener(x, y, LCP3_l2.setParentLevel)
+    LCP3_l3.addEventListener(x, y, LCP3_l3.setParentLevel)
+    LCP3_l4.addEventListener(x, y, LCP3_l4.setParentLevel)
+    LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
+
 def onMouseMove(x, y):
     if Sprite_Core.contains(x, y):
         coreHover.visible = True
