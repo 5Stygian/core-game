@@ -1,4 +1,5 @@
 from typing import Dict, List
+from random import randint
 
 app.background = rgb(255,255,255)
 
@@ -153,7 +154,12 @@ class Core:
         # when a new laser object is created, it is added to this list
         self.lasers = []
     
+    def __dir__(self) -> List[str]:
+        return ["temp", "tempFlux", "psi", "psiFlux", "lasers"]
+    
     class Laser:
+        FLUXTEMP = 2.5
+        
         def __init__(self, parent, level=2):
             self.parent = parent
             if type(self.parent) != Core:
@@ -167,6 +173,9 @@ class Core:
             
             self.parent.lasers.append(self)
         
+        def __dir__(self) -> List[str]:
+            return ["parent", "level"]
+        
         class LaserControlButton(Menu.Button):
             def __init__(self, parent, *args, level=None, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -179,7 +188,10 @@ class Core:
                     raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
                 if self.level < 1 or self.level > 5:
                     raise ValueError("level should be in range 1 to 5")
-
+            
+            def __dir__(self) -> List[str]:
+                return ["parent", "level"]
+            
             def setParentLevel(self) -> None:
                 self.parent.level = self.level
 
@@ -723,5 +735,22 @@ def onMousePress(x, y):
     LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
 
 app.stepsPerSecond = 0.75
+app.totalSteps = 0
 def onStep():
-    pass
+    # Core
+    ## Temp
+    for laser in core.lasers:
+        core.tempFlux += (Core.Laser.FLUXTEMP * laser.level) + randint(-5*laser.level, 5*laser.level)/3
+    core.tempFlux = rounded(core.tempFlux)
+    core.temp += core.tempFlux
+    title_CurrentTemperature.value = core.temp
+    if core.tempFlux > 0:
+        title_TempFlux.value = f"+ {core.tempFlux}"
+    elif core.tempFlux < 0:
+        title_TempFlux.value = f"- {core.tempFlux}"
+    elif core.tempFlux == 0:
+        title_TempFlux.value = f"{core.tempFlux}"
+
+    core.tempFlux = 0
+    
+    app.totalSteps += 1
