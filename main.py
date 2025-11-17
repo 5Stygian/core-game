@@ -3,6 +3,8 @@ from typing import Dict, List
 app.background = rgb(255,255,255)
 
 class Menu(Rect):
+    MENUS = []
+    
     def __init__(self, *args, parent = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.parent = parent
@@ -12,9 +14,30 @@ class Menu(Rect):
             else:
                 self.centerX = (parent.centerX - self.width/2) + self.centerX
                 self.centerY = parent.top + self.centerY
+        
+        self.data = {
+            "Class": self.__class__.__name__,
+            "Parent": self.parent,
+            "Dimensions": {
+                "TopLeft": (self.left, self.top),
+                "TopRight": (self.right, self.top),
+                "BottomLeft": (self.left, self.bottom),
+                "BottomRight": (self.right, self.bottom),
+                "Width": self.width,
+                "Height": self.height,
+            },
+            "BackgroundFill": self.fill,
+            "BorderFill": self.border,
+            "BorderWidth": self.borderWidth,
+            "Opacity": self.opacity,
+            "IsVisible": self.visible
+        }
+        
+        Menu.MENUS.append(self.data)
             
-    
     class Button(Rect):
+        BUTTONS = []
+        
         def __init__(self, parent, *args, 
                      textValue: str = "", textFill = rgb(0,0,0), textSize: int|float=12.0, textFont: str = "arial", textOpacity: int|float = 100,
                      textIsBold: bool = False, textIsItalic: bool = False, textIsVisible: bool = True,
@@ -47,6 +70,38 @@ class Menu(Rect):
                 visible=self.textIsVisible
             )
             
+            self.data = {
+                "Class": self.__class__.__name__,
+                "Parent": self.parent,
+                "BoundingBox": {
+                    "Dimensions": {
+                        "TopLeft": (self.left, self.top),
+                        "TopRight": (self.right, self.top),
+                        "BottomLeft": (self.left, self.bottom),
+                        "BottomRight": (self.right, self.bottom),
+                        "Width": self.width,
+                        "Height": self.height
+                    },
+                    "BackgroundFill": self.fill,
+                    "BorderFill": self.border,
+                    "BorderWidth": self.borderWidth,
+                    "Opacity": self.opacity,
+                    "IsVisible": self.visible
+                },
+                "Text": {
+                    "Position": (self.text.centerX, self.text.centerY),
+                    "Color": self.text.fill,
+                    "Font": self.text.font,
+                    "Size": self.text.size,
+                    "IsBold": self.text.bold,
+                    "IsItalic": self.text.italic,
+                    "Opacity": self.text.opacity,
+                    "IsVisible": self.text.visible
+                }
+            }
+            
+            Menu.Button.BUTTONS.append(self.data)
+            
         def addEventListener(self, x, y, onclick) -> None:
             if callable(onclick) == False:
                 raise TypeError(f"onclick should be a function, not {onclick.__class__.__name__}")
@@ -55,31 +110,75 @@ class Menu(Rect):
                 onclick()
     
     class Title(Label):
+        TITLES = []
+        
         def __init__(self, parent, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.parent = parent
             
             self.centerX = parent.centerX + self.centerX
             self.centerY = parent.top + self.centerY
+            
+            self.data = {
+                "Class": self.__class__.__name__,
+                "Parent": self.parent,
+                "Dimensions": {
+                    "TopLeft": (self.left, self.top),
+                    "TopRight": (self.right, self.top),
+                    "BottomLeft": (self.left, self.bottom),
+                    "BottomRight": (self.right, self.bottom),
+                    "Width": self.width,
+                    "Height": self.height,
+                },
+                "Position": (self.centerX, self.centerY),
+                "Color": self.fill,
+                "Font": self.font,
+                "Size": self.size,
+                "IsBold": self.bold,
+                "IsItalic": self.italic,
+                "Opacity": self.opacity,
+                "IsVisible": self.visible
+            }
+            
+            Menu.Title.TITLES.append(self.data)
 
 class Core:
     def __init__(self, startingTemp, startingPsi):
-        self.startingTemp = startingTemp
-        self.startingPsi  = startingPsi
+        self.temp = startingTemp
+        self.psi  = startingPsi
+        
+        self.tempFlux = 0
+        self.psiFlux  = 0
+        
+        # when a new laser object is created, it is added to this list
+        self.lasers = []
     
     class Laser:
         def __init__(self, parent, level=2):
             self.parent = parent
+            if type(self.parent) != Core:
+                raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
+            
             self.level = level
+            if type(self.level) != int:
+                raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
+            if self.level < 1 or self.level > 5:
+                raise ValueError("level should be in range 1 to 5")
+            
+            self.parent.lasers.append(self)
         
         class LaserControlButton(Menu.Button):
             def __init__(self, parent, *args, level=None, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.parent = parent
+                if type(self.parent) != Core.Laser:
+                    raise TypeError(f"type of parent should be Core.Laser, not {self.parent.__class__.__name__}")
                 
                 self.level = level
                 if type(self.level) != int:
                     raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
+                if self.level < 1 or self.level > 5:
+                    raise ValueError("level should be in range 1 to 5")
 
             def setParentLevel(self) -> None:
                 self.parent.level = self.level
@@ -177,9 +276,9 @@ core = Core(
     0
 )
 
-#### Sprite
+#### Core Sprite
 coreInner = Circle(
-    325, 100,
+    200, 90,
     20,
     fill=rgb(50,220,250),
     opacity=70
@@ -198,16 +297,146 @@ coreOuterRim = Circle(
     borderWidth=coreOuter.radius/10,
     opacity=30
 )
-coreHover = Circle(
-    coreInner.centerX, coreInner.centerY,
-    coreOuter.radius,
-    opacity=2,
-    visible=False
+
+Sprite_Core = Group( coreInner, coreOuter, coreOuterRim )
+
+### Monitors
+monitorDividerLine = Line(
+    0, 155,
+    400, 155
 )
 
-Sprite_Core = Group( coreInner, coreOuter, coreOuterRim, coreHover )
+#### Temp Monitor
+menu_TempMonitor = Menu(
+    10, 165,
+    160, 80,
+    fill=rgb(170,170,170),
+    border=rgb(40,40,40)
+)
+title_TempMonitor = Menu.Title(
+    menu_TempMonitor,
+    "Temperature (°C)",
+    0, 10,
+    size=15,
+    bold=True
+)
+title_TempMonitor.left = menu_TempMonitor.left + 6
 
-CoreMonitoring = Group( Sprite_Core )
+tempMonitorDividerLine = Line(
+    menu_TempMonitor.left, title_TempMonitor.bottom+7,
+    menu_TempMonitor.right, title_TempMonitor.bottom+7
+)
+
+title_CurrentTemperatureFormat = Menu.Title(
+    menu_TempMonitor,
+    "C. Temp -",
+    0, 35,
+    size=13,
+    bold=True
+)
+title_CurrentTemperatureFormat.left = menu_TempMonitor.left + 6
+title_CurrentTemperature = Menu.Title(
+    menu_TempMonitor,
+    f"{core.temp}",
+    menu_TempMonitor.right/5, 35,
+    size=13,
+    bold=True
+)
+
+CurrentTemperature = Group( title_CurrentTemperatureFormat, title_CurrentTemperature )
+
+title_TempFluxFormat = Menu.Title(
+    menu_TempMonitor,
+    "Temp Flux. -",
+    0, 60,
+    size=13,
+    bold=True
+)
+title_TempFluxFormat.left = menu_TempMonitor.left + 6
+title_TempFlux = Menu.Title(
+    menu_TempMonitor,
+    f"{core.tempFlux}",
+    menu_TempMonitor.right/5, 60,
+    size=13,
+    bold=True
+)
+
+TempFlux = Group( title_TempFluxFormat, title_TempFlux )
+
+TempMonitor = Group( 
+    menu_TempMonitor, 
+    title_TempMonitor,
+    tempMonitorDividerLine,
+    CurrentTemperature,
+    TempFlux
+)
+
+#### Pressure Monitor
+menu_PressureMonitor = Menu(
+    menu_TempMonitor.left, menu_TempMonitor.bottom+10,
+    menu_TempMonitor.width, menu_TempMonitor.height,
+    fill=menu_TempMonitor.fill,
+    border=menu_TempMonitor.border
+)
+title_PressureMonitor = Menu.Title(
+    menu_PressureMonitor,
+    "Pressure (PSI)",
+    0, 10,
+    size=15,
+    bold=True
+)
+title_PressureMonitor.left = menu_PressureMonitor.left + 6
+
+pressureMonitorDividerLine = Line(
+    menu_PressureMonitor.left, title_PressureMonitor.bottom+7,
+    menu_PressureMonitor.right, title_PressureMonitor.bottom+7
+)
+
+title_CurrentPressureFormat = Menu.Title(
+    menu_PressureMonitor,
+    "C. PSI -",
+    0, 35,
+    size=13,
+    bold=True
+)
+title_CurrentPressureFormat.left = menu_PressureMonitor.left + 6
+title_CurrentPressure = Menu.Title(
+    menu_PressureMonitor,
+    f"{core.psi}",
+    menu_TempMonitor.right/5, 35,
+    size=13,
+    bold=True
+)
+
+CurrentPressure = Group( title_CurrentPressureFormat, title_CurrentPressure )
+
+title_PressureFluxFormat = Menu.Title(
+    menu_PressureMonitor,
+    "PSI Flux. -",
+    0, 60,
+    size=13,
+    bold=True
+)
+title_PressureFluxFormat.left = menu_PressureMonitor.left + 6
+title_PressureFlux = Menu.Title(
+    menu_PressureMonitor,
+    f"{core.psiFlux}",
+    menu_PressureMonitor.right/5, 60,
+    size=13,
+    bold=True
+)
+
+PressureFlux = Group( title_PressureFluxFormat, title_PressureFlux )
+
+PressureMonitor = Group( 
+    menu_PressureMonitor, 
+    title_PressureMonitor,
+    pressureMonitorDividerLine,
+    CurrentPressure,
+    PressureFlux
+)
+
+CoreMonitoring = Group( Sprite_Core, monitorDividerLine, TempMonitor, PressureMonitor )
 
 ## Control Room
 ### Panels
@@ -463,7 +692,7 @@ CoolantRoom = Group( notImplemented )
 
 # Defaults
 
-nav_toggleControlRoom()
+nav_toggleCoreMonitoring()
 
 # Event Listeners
 def onMousePress(x, y):
@@ -493,8 +722,6 @@ def onMousePress(x, y):
     LCP3_l4.addEventListener(x, y, LCP3_l4.setParentLevel)
     LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
 
-def onMouseMove(x, y):
-    if Sprite_Core.contains(x, y):
-        coreHover.visible = True
-    else:
-        coreHover.visible = False
+app.stepsPerSecond = 0.75
+def onStep():
+    pass
