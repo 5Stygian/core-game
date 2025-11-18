@@ -1,5 +1,6 @@
 from typing import Dict, List
-from random import randint
+from random import randrange
+from math import sqrt, cbrt, pow
 
 app.background = rgb(255,255,255)
 
@@ -143,6 +144,29 @@ class Menu(Rect):
             
             Menu.Title.TITLES.append(self.data)
 
+class TitledMenu(Menu):
+    def __init__(self, titleValue, titleXAlign, titleYAlign, *args, titleSize=15, bold=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.titleValue = titleValue
+        self.titleXAlign = titleXAlign
+        self.titleYAlign = titleYAlign
+        self.titleSize = titleSize
+        self.bold = bold
+        self.title = Menu.Title(
+            self,
+            self.titleValue,
+            self.titleXAlign, self.titleYAlign,
+            size=self.titleSize,
+            bold=self.bold
+        )
+        self.title.left = self.left + 6
+        
+        self.titleDividerLine = Line(
+            self.left, self.title.bottom+7,
+            self.right, self.title.bottom+7
+        )
+
 class Core:
     def __init__(self, startingTemp, startingPsi):
         self.temp = startingTemp
@@ -151,14 +175,20 @@ class Core:
         self.tempFlux = 0
         self.psiFlux  = 0
         
-        # when a new laser object is created, it is added to this list
+        # when a new Laser object is created, it is added to this list
         self.lasers = []
-    
-    def __dir__(self) -> List[str]:
-        return ["temp", "tempFlux", "psi", "psiFlux", "lasers"]
     
     class Laser:
         FLUXTEMP = 2.5
+        FLUXPSI  = 1.5
+        
+        LEVELC = {
+            0: rgb(235,235,235),
+            1: rgb(255,248,98),
+            2: rgb(255,200,90),
+            3: rgb(255,140,41),
+            4: rgb(255,70,70)
+        }
         
         def __init__(self, parent, level=2):
             self.parent = parent
@@ -171,10 +201,10 @@ class Core:
             if self.level < 1 or self.level > 5:
                 raise ValueError("level should be in range 1 to 5")
             
+            self.buttons = []
+            self.sprite = None
+            
             self.parent.lasers.append(self)
-        
-        def __dir__(self) -> List[str]:
-            return ["parent", "level"]
         
         class LaserControlButton(Menu.Button):
             def __init__(self, parent, *args, level=None, **kwargs):
@@ -188,12 +218,40 @@ class Core:
                     raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
                 if self.level < 1 or self.level > 5:
                     raise ValueError("level should be in range 1 to 5")
-            
-            def __dir__(self) -> List[str]:
-                return ["parent", "level"]
+                
+                self.parent.buttons.append(self)
             
             def setParentLevel(self) -> None:
                 self.parent.level = self.level
+        
+        class Sprite(Rect):
+            def __init__(self, parentLaser, parentMenu, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+                self.parent = parentLaser
+                self.parentMenu = parentMenu
+                
+                self.centerX = (self.parentMenu.centerX - self.width/2) + self.centerX
+                self.centerY = self.parentMenu.top + self.centerY
+            
+                self.fill = rgb(120,120,120)
+                
+                self.border = Core.Laser.LEVELC[self.parent.buttons[1].level-1]
+                self.borderWidth = 3
+                
+                self.label = Label(
+                    self.parent.buttons[self.parent.buttons[1].level-1].level,
+                    self.centerX, self.centerY,
+                    size=15,
+                    fill=self.border,
+                    bold=True
+                )
+                
+                self.parent.sprite = self
+                
+                '''match self.parent.level:
+                    case 1:
+                        self.fill = rgb()'''
 
 #******************#
 
@@ -285,7 +343,7 @@ def nav_toggleCoreMonitoring():
 ### Core
 core = Core(
     1000,
-    0
+    100
 )
 
 #### Core Sprite
@@ -319,29 +377,17 @@ monitorDividerLine = Line(
 )
 
 #### Temp Monitor
-menu_TempMonitor = Menu(
+menu_TempMonitor = TitledMenu(
+    "Temperature (°C)",
+    0, 10,
     10, 165,
     160, 80,
     fill=rgb(170,170,170),
     border=rgb(40,40,40)
 )
-title_TempMonitor = Menu.Title(
-    menu_TempMonitor,
-    "Temperature (°C)",
-    0, 10,
-    size=15,
-    bold=True
-)
-title_TempMonitor.left = menu_TempMonitor.left + 6
-
-tempMonitorDividerLine = Line(
-    menu_TempMonitor.left, title_TempMonitor.bottom+7,
-    menu_TempMonitor.right, title_TempMonitor.bottom+7
-)
-
 title_CurrentTemperatureFormat = Menu.Title(
     menu_TempMonitor,
-    "C. Temp -",
+    "C. Temp",
     0, 35,
     size=13,
     bold=True
@@ -359,7 +405,7 @@ CurrentTemperature = Group( title_CurrentTemperatureFormat, title_CurrentTempera
 
 title_TempFluxFormat = Menu.Title(
     menu_TempMonitor,
-    "Temp Flux. -",
+    "Temp Flux.",
     0, 60,
     size=13,
     bold=True
@@ -376,37 +422,23 @@ title_TempFlux = Menu.Title(
 TempFlux = Group( title_TempFluxFormat, title_TempFlux )
 
 TempMonitor = Group( 
-    menu_TempMonitor, 
-    title_TempMonitor,
-    tempMonitorDividerLine,
+    menu_TempMonitor, menu_TempMonitor.title, menu_TempMonitor.titleDividerLine,
     CurrentTemperature,
     TempFlux
 )
 
 #### Pressure Monitor
-menu_PressureMonitor = Menu(
+menu_PressureMonitor = TitledMenu(
+    "Pressure (PSI)",
+    0, 10,
     menu_TempMonitor.left, menu_TempMonitor.bottom+10,
     menu_TempMonitor.width, menu_TempMonitor.height,
     fill=menu_TempMonitor.fill,
     border=menu_TempMonitor.border
 )
-title_PressureMonitor = Menu.Title(
-    menu_PressureMonitor,
-    "Pressure (PSI)",
-    0, 10,
-    size=15,
-    bold=True
-)
-title_PressureMonitor.left = menu_PressureMonitor.left + 6
-
-pressureMonitorDividerLine = Line(
-    menu_PressureMonitor.left, title_PressureMonitor.bottom+7,
-    menu_PressureMonitor.right, title_PressureMonitor.bottom+7
-)
-
 title_CurrentPressureFormat = Menu.Title(
     menu_PressureMonitor,
-    "C. PSI -",
+    "C. PSI",
     0, 35,
     size=13,
     bold=True
@@ -424,7 +456,7 @@ CurrentPressure = Group( title_CurrentPressureFormat, title_CurrentPressure )
 
 title_PressureFluxFormat = Menu.Title(
     menu_PressureMonitor,
-    "PSI Flux. -",
+    "PSI Flux.",
     0, 60,
     size=13,
     bold=True
@@ -441,9 +473,7 @@ title_PressureFlux = Menu.Title(
 PressureFlux = Group( title_PressureFluxFormat, title_PressureFlux )
 
 PressureMonitor = Group( 
-    menu_PressureMonitor, 
-    title_PressureMonitor,
-    pressureMonitorDividerLine,
+    menu_PressureMonitor, menu_PressureMonitor.title, menu_PressureMonitor.titleDividerLine,
     CurrentPressure,
     PressureFlux
 )
@@ -456,9 +486,11 @@ CoreMonitoring = Group( Sprite_Core, monitorDividerLine, TempMonitor, PressureMo
 laser1 = Core.Laser(
     core
 )
+
 laser2 = Core.Laser(
     core
 )
+
 laser3 = Core.Laser(
     core
 )
@@ -466,7 +498,6 @@ laser3 = Core.Laser(
 Lasers = ( laser1, laser2, laser3 )
 
 #### Laser Control
-
 def LCPButtonArgs() -> List:
     args = [
         55, 15
@@ -700,6 +731,44 @@ notImplemented = Label(
 
 CoolantRoom = Group( notImplemented )
 
+# Sprites
+## Laser Sprites
+menu_LaserSprites = Menu(
+    10, 40,
+    140, 105,
+    fill=rgb(170,170,170),
+    border=rgb(80,80,80),
+    borderWidth=2
+)
+
+sprite_Laser1 = Core.Laser.Sprite(
+    laser1,
+    menu_LaserSprites,
+    -45, 5,
+    30, 95,
+)
+
+sprite_Laser2 = Core.Laser.Sprite(
+    laser2,
+    menu_LaserSprites,
+    0, 5,
+    30, 95,
+)
+
+sprite_Laser3 = Core.Laser.Sprite(
+    laser3,
+    menu_LaserSprites,
+    45, 5,
+    30, 95,
+)
+
+CoreMonitoring.add(
+    menu_LaserSprites,
+    sprite_Laser1, sprite_Laser1.label,
+    sprite_Laser2, sprite_Laser2.label,
+    sprite_Laser3, sprite_Laser3.label
+)
+
 #******************#
 
 # Defaults
@@ -736,21 +805,67 @@ def onMousePress(x, y):
 
 app.stepsPerSecond = 0.75
 app.totalSteps = 0
+
 def onStep():
     # Core
-    ## Temp
+    ## Temp/PSI
     for laser in core.lasers:
-        core.tempFlux += (Core.Laser.FLUXTEMP * laser.level) + randint(-5*laser.level, 5*laser.level)/3
+        core.tempFlux += Core.Laser.FLUXTEMP * laser.level
+        core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(core.temp), 1.1)/10
+        
+        core.psiFlux += Core.Laser.FLUXPSI * laser.level
+        core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * cbrt(core.temp)/1.8
+        
     core.tempFlux = rounded(core.tempFlux)
     core.temp += core.tempFlux
+    
+    core.psiFlux = rounded(core.psiFlux)
+    core.psi += core.psiFlux
+    if core.psi < 0:
+        core.psiFlux = 0
+        core.psi = 0
+    
     title_CurrentTemperature.value = core.temp
+    if core.temp >= 35500:
+        title_CurrentTemperature.fill = rgb(240,30,70)
+    elif core.temp >= 26500:
+        title_CurrentTemperature.fill = rgb(220,100,50)
+    elif core.temp >= 17500:
+        title_CurrentTemperature.fill = rgb(220,220,50)
+    else:
+        title_CurrentTemperature.fill = rgb(0,0,0)
+    
     if core.tempFlux > 0:
-        title_TempFlux.value = f"+ {core.tempFlux}"
+        title_TempFlux.value = f"+{core.tempFlux}"
+        title_TempFlux.fill = rgb(240,30,70)
     elif core.tempFlux < 0:
-        title_TempFlux.value = f"- {core.tempFlux}"
+        title_TempFlux.value = f"{core.tempFlux}"
+        title_TempFlux.fill = rgb(70,30,240)
     elif core.tempFlux == 0:
         title_TempFlux.value = f"{core.tempFlux}"
-
+        title_TempFlux.fill = rgb(0,0,0)
+    
+    title_CurrentPressure.value = core.psi
+    if core.psi >= 31000:
+        title_CurrentPressure.fill = rgb(240,30,70)
+    elif core.psi >= 21500:
+        title_CurrentPressure.fill = rgb(220,100,50)
+    elif core.psi >= 12000:
+        title_CurrentPressure.fill = rgb(220,220,50)
+    else:
+        title_CurrentPressure.fill = rgb(0,0,0)
+    
+    if core.psiFlux > 0:
+        title_PressureFlux.value = f"+{core.psiFlux}"
+        title_PressureFlux.fill = rgb(240,30,70)
+    elif core.psiFlux < 0:
+        title_PressureFlux.value = f"{core.psiFlux}"
+        title_PressureFlux.fill = rgb(70,30,240)
+    elif core.psiFlux == 0:
+        title_PressureFlux.value = f"{core.psiFlux}"
+        title_PressureFlux.fill = rgb(0,0,0)
+    
     core.tempFlux = 0
+    core.psiFlux  = 0
     
     app.totalSteps += 1
