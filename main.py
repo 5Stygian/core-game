@@ -46,8 +46,6 @@ class Menu(Rect):
                      debug: bool = False, **kwargs):
             super().__init__(*args, **kwargs)
             self.parent  = parent
-            if type(self.parent) != Menu:
-                raise TypeError(f"parent must be of type Menu, not {self.parent.__class__.__name__}")
             
             self.centerX = (self.parent.centerX - self.width/2) + self.centerX
             self.centerY = self.parent.top + self.centerY
@@ -177,6 +175,7 @@ class Core:
         
         # when a new Laser object is created, it is added to this list
         self.lasers = []
+        self.pvents = []
     
     class Laser:
         FLUXTEMP = 2.5
@@ -228,23 +227,23 @@ class Core:
                     case 1:
                         self.parent.sprite.border = Core.Laser.LEVELC[0]
                         self.parent.sprite.label.fill = Core.Laser.LEVELC[0]
-                        self.parent.sprite.label.value = "1"
+                        self.parent.sprite.label.value = self.level
                     case 2:
                         self.parent.sprite.border = Core.Laser.LEVELC[1]
                         self.parent.sprite.label.fill = Core.Laser.LEVELC[1]
-                        self.parent.sprite.label.value = "2"
+                        self.parent.sprite.label.value = self.level
                     case 3:
                         self.parent.sprite.border = Core.Laser.LEVELC[2]
                         self.parent.sprite.label.fill = Core.Laser.LEVELC[2]
-                        self.parent.sprite.label.value = "3"
+                        self.parent.sprite.label.value = self.level
                     case 4:
                         self.parent.sprite.border = Core.Laser.LEVELC[3]
                         self.parent.sprite.label.fill = Core.Laser.LEVELC[3]
-                        self.parent.sprite.label.value = "4"
+                        self.parent.sprite.label.value = self.level
                     case 5:
                         self.parent.sprite.border = Core.Laser.LEVELC[4]
                         self.parent.sprite.label.fill = Core.Laser.LEVELC[4]
-                        self.parent.sprite.label.value = "5"
+                        self.parent.sprite.label.value = self.level
         
         class Sprite(Rect):
             def __init__(self, parentLaser, parentMenu, *args, **kwargs):
@@ -273,7 +272,36 @@ class Core:
                     self.parent.sprite = self
                 else:
                     pass
-
+    
+    class PressureVent:
+        PSIFLUX = -8.5
+        
+        TOGGLEC = {
+            "on": rgb(120,230,70),
+            "off": rgb(255,100,90)
+        }
+        
+        def __init__(self, parent, on=True):
+            self.parent = parent
+            self.on = on
+            
+            if type(self.parent) != Core:
+                raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
+            
+            self.parent.pvents.append(self)
+        
+        class PressureVentButton(Menu.Button):
+            def __init__(self, parent, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+                self.parent = parent
+                if type(self.parent) != Core.PressureVent:
+                    raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
+            
+            def togglePV(self) -> None:
+                self.parent.on = not(self.parent.on)
+                print(self.parent.on)
+    
 #******************#
 
 # UI
@@ -736,7 +764,193 @@ LCP3 = Group(
 
 LCP = Group( menu_LaserControlPanel, LCP1, LCP2, LCP3 )
 
-Panels = Group( LCP )
+### Pressure Vents
+menu_PressureVentPanel = Menu(
+    menu_LaserControlPanel.right+10, menu_LaserControlPanel.top,
+    155, menu_LaserControlPanel.height,
+    fill=rgb(170,170,170),
+    border=rgb(40,40,40)
+)
+
+#### PV 1
+menu_PV1 = TitledMenu(
+    "P. Vent 1",
+    0, 8,
+    -35,10,
+    55,55,
+    parent=menu_PressureVentPanel,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=10,
+    bold=True
+)
+menu_PV1.title.centerX = menu_PV1.centerX
+menu_PV1.titleDividerLine.y1 -= 3
+menu_PV1.titleDividerLine.y2 -= 3
+
+PV1_on = Core.PressureVent.PressureVentButton(
+    menu_PV1,
+    -14, 20,
+    20, 30,
+    border=Core.PressureVent.TOGGLEC["on"],
+    textValue="ON",
+    textFill=Core.PressureVent.TOGGLEC["on"],
+    textSize=10,
+    textIsBold=True
+)
+PV1_off = Core.PressureVent.PressureVentButton(
+    menu_PV1,
+    12, 20,
+    25, 30,
+    border=Core.PressureVent.TOGGLEC["off"],
+    textValue="OFF",
+    textFill=Core.PressureVent.TOGGLEC["off"],
+    textSize=10,
+    textIsBold=True
+)
+
+PV1 = Group(
+    menu_PV1, menu_PV1.title, menu_PV1.titleDividerLine,
+    PV1_on, PV1_on.text,
+    PV1_off, PV1_off.text
+)
+
+#### PV 2
+menu_PV2 = TitledMenu(
+    "P. Vent 2",
+    0, 8,
+    35,10,
+    55,55,
+    parent=menu_PressureVentPanel,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=10,
+    bold=True
+)
+menu_PV2.title.centerX = menu_PV2.centerX
+menu_PV2.titleDividerLine.y1 -= 3
+menu_PV2.titleDividerLine.y2 -= 3
+
+PV2_on = Core.PressureVent.PressureVentButton(
+    menu_PV2,
+    -14, 20,
+    20, 30,
+    border=Core.PressureVent.TOGGLEC["on"],
+    textValue="ON",
+    textFill=Core.PressureVent.TOGGLEC["on"],
+    textSize=10,
+    textIsBold=True
+)
+PV2_off = Core.PressureVent.PressureVentButton(
+    menu_PV2,
+    12, 20,
+    25, 30,
+    border=Core.PressureVent.TOGGLEC["off"],
+    textValue="OFF",
+    textFill=Core.PressureVent.TOGGLEC["off"],
+    textSize=10,
+    textIsBold=True
+)
+
+PV2 = Group(
+    menu_PV2, menu_PV2.title, menu_PV2.titleDividerLine,
+    PV2_on, PV2_on.text,
+    PV2_off, PV2_off.text
+)
+
+#### PV 3
+menu_PV3 = TitledMenu(
+    "P. Vent 3",
+    0, 8,
+    -35,75,
+    55,55,
+    parent=menu_PressureVentPanel,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=10,
+    bold=True
+)
+menu_PV3.title.centerX = menu_PV3.centerX
+menu_PV3.titleDividerLine.y1 -= 3
+menu_PV3.titleDividerLine.y2 -= 3
+
+PV3_on = Core.PressureVent.PressureVentButton(
+    menu_PV3,
+    -14, 20,
+    20, 30,
+    border=Core.PressureVent.TOGGLEC["on"],
+    textValue="ON",
+    textFill=Core.PressureVent.TOGGLEC["on"],
+    textSize=10,
+    textIsBold=True
+)
+PV3_off = Core.PressureVent.PressureVentButton(
+    menu_PV3,
+    12, 20,
+    25, 30,
+    border=Core.PressureVent.TOGGLEC["off"],
+    textValue="OFF",
+    textFill=Core.PressureVent.TOGGLEC["off"],
+    textSize=10,
+    textIsBold=True
+)
+
+PV3 = Group(
+    menu_PV3, menu_PV3.title, menu_PV3.titleDividerLine,
+    PV3_on, PV3_on.text,
+    PV3_off, PV3_off.text
+)
+
+#### PV 4
+menu_PV4 = TitledMenu(
+    "P. Vent 4",
+    0, 8,
+    35,75,
+    55,55,
+    parent=menu_PressureVentPanel,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=10,
+    bold=True
+)
+menu_PV4.title.centerX = menu_PV4.centerX
+menu_PV4.titleDividerLine.y1 -= 3
+menu_PV4.titleDividerLine.y2 -= 3
+
+PV4_on = Core.PressureVent.PressureVentButton(
+    menu_PV4,
+    -14, 20,
+    20, 30,
+    border=Core.PressureVent.TOGGLEC["on"],
+    textValue="ON",
+    textFill=Core.PressureVent.TOGGLEC["on"],
+    textSize=10,
+    textIsBold=True
+)
+PV4_off = Core.PressureVent.PressureVentButton(
+    menu_PV4,
+    12, 20,
+    25, 30,
+    border=Core.PressureVent.TOGGLEC["off"],
+    textValue="OFF",
+    textFill=Core.PressureVent.TOGGLEC["off"],
+    textSize=10,
+    textIsBold=True
+)
+
+PV4 = Group(
+    menu_PV4, menu_PV4.title, menu_PV4.titleDividerLine,
+    PV4_on, PV4_on.text,
+    PV4_off, PV4_off.text
+)
+
+PVCP = Group(
+    menu_PressureVentPanel,
+    PV1, PV2,
+    PV3, PV4
+)
+
+Panels = Group( LCP, PVCP )
 
 ControlRoom = Group( Panels )
 
@@ -794,7 +1008,7 @@ CoreMonitoring.add(
 
 # Defaults
 
-nav_toggleCoreMonitoring()
+nav_toggleControlRoom()
 
 # Event Listeners
 def onMousePress(x, y):
@@ -823,6 +1037,11 @@ def onMousePress(x, y):
     LCP3_l3.addEventListener(x, y, LCP3_l3.setParentLevel)
     LCP3_l4.addEventListener(x, y, LCP3_l4.setParentLevel)
     LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
+    
+    ## PV
+    ### PV 1
+    PV1_on.addEventListener(x, y, PV1_on.togglePV)
+    PV1_off.addEventListener(x, y, PV1_off.togglePV)
 
 app.stepsPerSecond = 0.75
 app.totalSteps = 0
