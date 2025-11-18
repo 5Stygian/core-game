@@ -223,6 +223,28 @@ class Core:
             
             def setParentLevel(self) -> None:
                 self.parent.level = self.level
+                self.parent.sprite.level = self.level
+                match self.parent.sprite.level:
+                    case 1:
+                        self.parent.sprite.border = Core.Laser.LEVELC[0]
+                        self.parent.sprite.label.fill = Core.Laser.LEVELC[0]
+                        self.parent.sprite.label.value = "1"
+                    case 2:
+                        self.parent.sprite.border = Core.Laser.LEVELC[1]
+                        self.parent.sprite.label.fill = Core.Laser.LEVELC[1]
+                        self.parent.sprite.label.value = "2"
+                    case 3:
+                        self.parent.sprite.border = Core.Laser.LEVELC[2]
+                        self.parent.sprite.label.fill = Core.Laser.LEVELC[2]
+                        self.parent.sprite.label.value = "3"
+                    case 4:
+                        self.parent.sprite.border = Core.Laser.LEVELC[3]
+                        self.parent.sprite.label.fill = Core.Laser.LEVELC[3]
+                        self.parent.sprite.label.value = "4"
+                    case 5:
+                        self.parent.sprite.border = Core.Laser.LEVELC[4]
+                        self.parent.sprite.label.fill = Core.Laser.LEVELC[4]
+                        self.parent.sprite.label.value = "5"
         
         class Sprite(Rect):
             def __init__(self, parentLaser, parentMenu, *args, **kwargs):
@@ -236,22 +258,21 @@ class Core:
             
                 self.fill = rgb(120,120,120)
                 
-                self.border = Core.Laser.LEVELC[self.parent.buttons[1].level-1]
+                self.border = Core.Laser.LEVELC[self.parent.buttons[1].level-1] # the best dict access you've ever seen
                 self.borderWidth = 3
                 
                 self.label = Label(
-                    self.parent.buttons[self.parent.buttons[1].level-1].level,
+                    self.parent.level,
                     self.centerX, self.centerY,
                     size=15,
                     fill=self.border,
                     bold=True
                 )
                 
-                self.parent.sprite = self
-                
-                '''match self.parent.level:
-                    case 1:
-                        self.fill = rgb()'''
+                if self.parent.sprite is None:
+                    self.parent.sprite = self
+                else:
+                    pass
 
 #******************#
 
@@ -663,7 +684,7 @@ menu_LCP3 = Menu(
 )
 LCP3_Label = Menu.Title(
     menu_LCP3,
-    "Laser 2",
+    "Laser 3",
     0, 15,
     bold=True
 )
