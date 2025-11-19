@@ -174,8 +174,11 @@ class Core:
         self.psiFlux  = 0
         
         # when a new Laser object is created, it is added to this list
+        # same with pvents
         self.lasers = []
         self.pvents = []
+        
+        self.activeVents = 0
     
     class Laser:
         FLUXTEMP = 2.5
@@ -274,7 +277,7 @@ class Core:
                     pass
     
     class PressureVent:
-        PSIFLUX = -8.5
+        FLUXPSI = 8.5
         
         TOGGLEC = {
             "on": rgb(120,230,70),
@@ -291,17 +294,27 @@ class Core:
             self.parent.pvents.append(self)
         
         class PressureVentButton(Menu.Button):
-            def __init__(self, parent, *args, **kwargs):
+            def __init__(self, parent, *args, onclickType=True, **kwargs):
                 super().__init__(*args, **kwargs)
                 
                 self.parent = parent
                 if type(self.parent) != Core.PressureVent:
-                    raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
-            
+                    raise TypeError(f"type of parent should be Core.PressureVent, not {self.parent.__class__.__name__}")
+                
+                self.onclickType = onclickType
+                
+                if self.onclickType == True:
+                    self.parent.parent.activeVents += 1
+                
             def togglePV(self) -> None:
-                self.parent.on = not(self.parent.on)
-                print(self.parent.on)
-    
+                if self.onclickType == True:
+                    self.parent.on = self.onclickType
+                    if self.parent.parent.activeVents < 4:
+                        self.parent.parent.activeVents += 1
+                if self.onclickType == False and self.parent.parent.activeVents > 0:
+                    self.parent.on = self.onclickType
+                    self.parent.parent.activeVents -= 1
+
 #******************#
 
 # UI
@@ -765,6 +778,11 @@ LCP3 = Group(
 LCP = Group( menu_LaserControlPanel, LCP1, LCP2, LCP3 )
 
 ### Pressure Vents
+pvent1 = Core.PressureVent(core)
+pvent2 = Core.PressureVent(core)
+pvent3 = Core.PressureVent(core)
+pvent4 = Core.PressureVent(core)
+
 menu_PressureVentPanel = Menu(
     menu_LaserControlPanel.right+10, menu_LaserControlPanel.top,
     155, menu_LaserControlPanel.height,
@@ -789,6 +807,7 @@ menu_PV1.titleDividerLine.y1 -= 3
 menu_PV1.titleDividerLine.y2 -= 3
 
 PV1_on = Core.PressureVent.PressureVentButton(
+    pvent1,
     menu_PV1,
     -14, 20,
     20, 30,
@@ -796,9 +815,11 @@ PV1_on = Core.PressureVent.PressureVentButton(
     textValue="ON",
     textFill=Core.PressureVent.TOGGLEC["on"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=True
 )
 PV1_off = Core.PressureVent.PressureVentButton(
+    pvent1,
     menu_PV1,
     12, 20,
     25, 30,
@@ -806,7 +827,8 @@ PV1_off = Core.PressureVent.PressureVentButton(
     textValue="OFF",
     textFill=Core.PressureVent.TOGGLEC["off"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=False
 )
 
 PV1 = Group(
@@ -832,6 +854,7 @@ menu_PV2.titleDividerLine.y1 -= 3
 menu_PV2.titleDividerLine.y2 -= 3
 
 PV2_on = Core.PressureVent.PressureVentButton(
+    pvent2,
     menu_PV2,
     -14, 20,
     20, 30,
@@ -839,9 +862,11 @@ PV2_on = Core.PressureVent.PressureVentButton(
     textValue="ON",
     textFill=Core.PressureVent.TOGGLEC["on"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=True
 )
 PV2_off = Core.PressureVent.PressureVentButton(
+    pvent2,
     menu_PV2,
     12, 20,
     25, 30,
@@ -849,7 +874,8 @@ PV2_off = Core.PressureVent.PressureVentButton(
     textValue="OFF",
     textFill=Core.PressureVent.TOGGLEC["off"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=False
 )
 
 PV2 = Group(
@@ -875,6 +901,7 @@ menu_PV3.titleDividerLine.y1 -= 3
 menu_PV3.titleDividerLine.y2 -= 3
 
 PV3_on = Core.PressureVent.PressureVentButton(
+    pvent3,
     menu_PV3,
     -14, 20,
     20, 30,
@@ -882,9 +909,11 @@ PV3_on = Core.PressureVent.PressureVentButton(
     textValue="ON",
     textFill=Core.PressureVent.TOGGLEC["on"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=True
 )
 PV3_off = Core.PressureVent.PressureVentButton(
+    pvent3,
     menu_PV3,
     12, 20,
     25, 30,
@@ -892,7 +921,8 @@ PV3_off = Core.PressureVent.PressureVentButton(
     textValue="OFF",
     textFill=Core.PressureVent.TOGGLEC["off"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=False
 )
 
 PV3 = Group(
@@ -918,6 +948,7 @@ menu_PV4.titleDividerLine.y1 -= 3
 menu_PV4.titleDividerLine.y2 -= 3
 
 PV4_on = Core.PressureVent.PressureVentButton(
+    pvent4,
     menu_PV4,
     -14, 20,
     20, 30,
@@ -925,9 +956,11 @@ PV4_on = Core.PressureVent.PressureVentButton(
     textValue="ON",
     textFill=Core.PressureVent.TOGGLEC["on"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=True
 )
 PV4_off = Core.PressureVent.PressureVentButton(
+    pvent4,
     menu_PV4,
     12, 20,
     25, 30,
@@ -935,7 +968,8 @@ PV4_off = Core.PressureVent.PressureVentButton(
     textValue="OFF",
     textFill=Core.PressureVent.TOGGLEC["off"],
     textSize=10,
-    textIsBold=True
+    textIsBold=True,
+    onclickType=False
 )
 
 PV4 = Group(
@@ -1042,6 +1076,15 @@ def onMousePress(x, y):
     ### PV 1
     PV1_on.addEventListener(x, y, PV1_on.togglePV)
     PV1_off.addEventListener(x, y, PV1_off.togglePV)
+    ### PV 2
+    PV2_on.addEventListener(x, y, PV2_on.togglePV)
+    PV2_off.addEventListener(x, y, PV2_off.togglePV)
+    ### PV 3
+    PV3_on.addEventListener(x, y, PV3_on.togglePV)
+    PV3_off.addEventListener(x, y, PV3_off.togglePV)
+    ### PV 4
+    PV4_on.addEventListener(x, y, PV4_on.togglePV)
+    PV4_off.addEventListener(x, y, PV4_off.togglePV)
 
 app.stepsPerSecond = 0.75
 app.totalSteps = 0
@@ -1049,13 +1092,17 @@ app.totalSteps = 0
 def onStep():
     # Core
     ## Temp/PSI
+    for pvent in core.pvents:
+        core.psiFlux -= Core.PressureVent.FLUXPSI * core.activeVents
+    
     for laser in core.lasers:
-        core.tempFlux += Core.Laser.FLUXTEMP * laser.level
-        core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(core.temp), 1.1)/10
-        
         core.psiFlux += Core.Laser.FLUXPSI * laser.level
         core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * cbrt(core.temp)/1.8
         
+        core.tempFlux += Core.Laser.FLUXTEMP * laser.level
+        core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(core.temp), 1.1)/10
+        core.tempFlux += pow(core.psi, 1.08)/10
+
     core.tempFlux = rounded(core.tempFlux)
     core.temp += core.tempFlux
     
