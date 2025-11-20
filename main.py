@@ -158,7 +158,7 @@ class TitledMenu(Menu):
             size=self.titleSize,
             bold=self.bold
         )
-        self.title.left = self.left + 6
+        #self.title.left = self.left + 6
         
         self.titleDividerLine = Line(
             self.left, self.title.bottom+7,
@@ -174,11 +174,66 @@ class Core:
         self.psiFlux  = 0
         
         # when a new Laser object is created, it is added to this list
-        # same with pvents
+        # same with pvents and cpumps
         self.lasers = []
         self.pvents = []
+        self.cpumps = []
         
         self.activeVents = 0
+        self.activePumps = 0
+        
+    class CoolantPump:
+        FLUXTEMP = 6.5
+        
+        def __init__(self, parent, pumpNumber, level=1):
+            self.parent = parent
+            if type(self.parent) != Core:
+                raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
+            
+            self.level = level
+            if type(self.level) != int:
+                raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
+            if self.level < 1 or self.level > 3:
+                raise ValueError("level should be in range 1 to 3")
+            
+            self.pumpNumber = pumpNumber
+            
+            self.buttons = []
+            
+            self.parent.activePumps += 1
+            
+            self.parent.cpumps.append(self)
+        
+        class CoolantControlButton(Menu.Button):
+            def __init__(self, parent, *args, level=None, btype="setter", **kwargs):
+                super().__init__(*args, **kwargs)
+                
+                self.parent = parent
+                
+                self.level = level
+                if type(self.level) != int:
+                    raise TypeError(f"type of level should be int, not {self.level.__class__.__name__}")
+                if self.level < 1 or self.level > 3:
+                    raise ValueError("level should be in range 1 to 3")
+                
+                self.btype = btype
+                if type(self.btype) != str:
+                    raise TypeError(f"type of type must be str, not {self.btype.__class__.__name__}")
+                if self.btype not in ["setter", "toggle"]:
+                    raise ValueError(f"type must either be \"setter\" or \"toggle\", not \"{self.btype}\"")
+                
+                self.parent.buttons.append(self)
+                
+            def setParentLevel(self):
+                if self.btype == "setter":
+                    self.parent.level = self.level
+                    
+                    if self.parent.pumpNumber == 1:
+                        self.parent.parent.lasers[0].sprite.fill = Core.Laser.Sprite.COOLED[self.level]
+                    elif self.parent.pumpNumber == 2:
+                        self.parent.parent.lasers[1].sprite.fill = Core.Laser.Sprite.COOLED[self.level]
+                    elif self.parent.pumpNumber == 3:
+                        self.parent.parent.lasers[2].sprite.fill = Core.Laser.Sprite.COOLED[self.level]
     
     class Laser:
         FLUXTEMP = 2.5
@@ -249,6 +304,13 @@ class Core:
                         self.parent.sprite.label.value = self.level
         
         class Sprite(Rect):
+            UNCOOLED = rgb(120,120,120)
+            COOLED = {
+                1: gradient(rgb(120,120,120), rgb(100,100,130), start="top-right"),
+                2: gradient(rgb(120,120,120), rgb(100,100,175), start="top-right"),
+                3: gradient(rgb(120,120,120), rgb(100,100,220), start="top-right")
+            }
+            
             def __init__(self, parentLaser, parentMenu, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 
@@ -258,9 +320,10 @@ class Core:
                 self.centerX = (self.parentMenu.centerX - self.width/2) + self.centerX
                 self.centerY = self.parentMenu.top + self.centerY
             
-                self.fill = rgb(120,120,120)
+                self.fill = Core.Laser.Sprite.UNCOOLED
                 
-                self.border = Core.Laser.LEVELC[self.parent.buttons[1].level-1] # the best dict access you've ever seen
+                # the best dict access you've ever seen
+                self.border = Core.Laser.LEVELC[self.parent.buttons[1].level-1]
                 self.borderWidth = 3
                 
                 self.label = Label(
@@ -482,7 +545,7 @@ monitorDividerLine = Line(
 #### Temp Monitor
 menu_TempMonitor = TitledMenu(
     "Temperature (°C)",
-    0, 10,
+    -15, 10,
     10, 165,
     160, 80,
     fill=rgb(170,170,170),
@@ -533,7 +596,7 @@ TempMonitor = Group(
 #### Pressure Monitor
 menu_PressureMonitor = TitledMenu(
     "Pressure (PSI)",
-    0, 10,
+    -23, 10,
     menu_TempMonitor.left, menu_TempMonitor.bottom+10,
     menu_TempMonitor.width, menu_TempMonitor.height,
     fill=menu_TempMonitor.fill,
@@ -626,7 +689,7 @@ def LCPButtonKwargs(text: str = "", border = rgb(60,60,60), level: int|None = No
 
 menu_LaserControlPanel = Menu(
     10, 40,
-    215, 140,
+    215, 226,
     fill=rgb(170,170,170),
     border=rgb(40,40,40)
 )
@@ -635,18 +698,15 @@ LCPnMenuFill = rgb(200,200,200)
 
 ##### LC Panel 1
 
-menu_LCP1 = Menu(
+menu_LCP1 = TitledMenu(
+    "Laser 1",
+    0, 12,
     -70, 5,
     65, 130,
     fill=LCPnMenuFill,
     border=rgb(0,0,0),
+    titleSize=12,
     parent=menu_LaserControlPanel
-)
-LCP1_Label = Menu.Title(
-    menu_LCP1,
-    "Laser 1",
-    0, 15,
-    bold=True
 )
 LCP1_l1 = Core.Laser.LaserControlButton(
     laser1,
@@ -685,8 +745,7 @@ LCP1_l5 = Core.Laser.LaserControlButton(
 )
 
 LCP1 = Group(
-    menu_LCP1,
-    LCP1_Label,
+    menu_LCP1, menu_LCP1.title, menu_LCP1.titleDividerLine,
     LCP1_l1, LCP1_l1.text,
     LCP1_l2, LCP1_l2.text,
     LCP1_l3, LCP1_l3.text,
@@ -696,18 +755,15 @@ LCP1 = Group(
 
 ##### LC Panel 2
 
-menu_LCP2 = Menu(
+menu_LCP2 = TitledMenu(
+    "Laser 2",
+    0, 12,
     0, 5,
     65, 130,
     fill=LCPnMenuFill,
     border=rgb(0,0,0),
+    titleSize=12,
     parent=menu_LaserControlPanel
-)
-LCP2_Label = Menu.Title(
-    menu_LCP2,
-    "Laser 2",
-    0, 15,
-    bold=True
 )
 LCP2_l1 = Core.Laser.LaserControlButton(
     laser2,
@@ -746,8 +802,7 @@ LCP2_l5 = Core.Laser.LaserControlButton(
 )
 
 LCP2 = Group( 
-    menu_LCP2,
-    LCP2_Label,
+    menu_LCP2, menu_LCP2.title, menu_LCP2.titleDividerLine,
     LCP2_l1, LCP2_l1.text,
     LCP2_l2, LCP2_l2.text,
     LCP2_l3, LCP2_l3.text,
@@ -757,18 +812,15 @@ LCP2 = Group(
 
 ##### LC Panel 3
 
-menu_LCP3 = Menu(
+menu_LCP3 = TitledMenu(
+    "Laser 3",
+    0, 12,
     70, 5,
     65, 130,
     fill=LCPnMenuFill,
     border=rgb(0,0,0),
+    titleSize=12,
     parent=menu_LaserControlPanel
-)
-LCP3_Label = Menu.Title(
-    menu_LCP3,
-    "Laser 3",
-    0, 15,
-    bold=True
 )
 LCP3_l1 = Core.Laser.LaserControlButton(
     laser3,
@@ -807,8 +859,7 @@ LCP3_l5 = Core.Laser.LaserControlButton(
 )
 
 LCP3 = Group(
-    menu_LCP3,
-    LCP3_Label,
+    menu_LCP3, menu_LCP3.title, menu_LCP3.titleDividerLine,
     LCP3_l1, LCP3_l1.text,
     LCP3_l2, LCP3_l2.text,
     LCP3_l3, LCP3_l3.text,
@@ -818,6 +869,153 @@ LCP3 = Group(
 
 LCP = Group( menu_LaserControlPanel, LCP1, LCP2, LCP3 )
 
+### Coolant Pumps
+cpump1 = Core.CoolantPump(core, 1)
+cpump2 = Core.CoolantPump(core, 2)
+cpump3 = Core.CoolantPump(core, 3)
+
+def CPCButtonArgs() -> List:
+    args = [
+        55, 15
+    ]
+    return args
+
+def CPCButtonKwargs(border, level: int|None = None, text: str = "") -> Dict:
+    kwargs = {
+        "fill": rgb(250,250,250),
+        "border": border,
+        "textValue": text,
+        "textFill": border,
+        "textSize": 10,
+        "textIsBold": True,
+        "level": level
+    }
+    if level == 1:
+        kwargs["fill"] = rgb(80,80,80)
+
+    return kwargs
+
+#### CP 1
+menu_L1CPC = TitledMenu(
+    "L1. Cool.",
+    0, 10,
+    -70, 141,
+    menu_LCP1.width, 80,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=12,
+    parent=menu_LaserControlPanel
+)
+L1CPC_l1 = Core.CoolantPump.CoolantControlButton(
+    cpump1,
+    menu_L1CPC,
+    0, 27,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(160,160,255), level=1, text="Level 1")
+)
+L1CPC_l2 = Core.CoolantPump.CoolantControlButton(
+    cpump1,
+    menu_L1CPC,
+    0, 44,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(130,130,255), level=2, text="Level 2")
+)
+L1CPC_l3 = Core.CoolantPump.CoolantControlButton(
+    cpump1,
+    menu_L1CPC,
+    0, 61,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(100,100,255), level=3, text="Level 3")
+)
+
+L1CPC = Group( 
+    menu_L1CPC, menu_L1CPC.title, menu_L1CPC.titleDividerLine,
+    L1CPC_l1, L1CPC_l1.text,
+    L1CPC_l2, L1CPC_l2.text,
+    L1CPC_l3, L1CPC_l3.text
+)
+
+#### CP 2
+menu_L2CPC = TitledMenu(
+    "L2. Cool.",
+    0, 10,
+    0, 141,
+    menu_LCP2.width, 80,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=12,
+    parent=menu_LaserControlPanel
+)
+L2CPC_l1 = Core.CoolantPump.CoolantControlButton(
+    cpump2,
+    menu_L2CPC,
+    0, 27,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(160,160,255), level=1, text="Level 1")
+)
+L2CPC_l2 = Core.CoolantPump.CoolantControlButton(
+    cpump2,
+    menu_L2CPC,
+    0, 44,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(130,130,255), level=2, text="Level 2")
+)
+L2CPC_l3 = Core.CoolantPump.CoolantControlButton(
+    cpump2,
+    menu_L2CPC,
+    0, 61,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(100,100,255), level=3, text="Level 3")
+)
+
+L2CPC = Group( 
+    menu_L2CPC, menu_L2CPC.title, menu_L2CPC.titleDividerLine,
+    L2CPC_l1, L2CPC_l1.text,
+    L2CPC_l2, L2CPC_l2.text,
+    L2CPC_l3, L2CPC_l3.text
+)
+
+#### CP 3
+menu_L3CPC = TitledMenu(
+    "L3. Cool.",
+    0, 10,
+    70, 141,
+    menu_LCP3.width, 80,
+    fill=LCPnMenuFill,
+    border=rgb(0,0,0),
+    titleSize=12,
+    parent=menu_LaserControlPanel
+)
+L3CPC_l1 = Core.CoolantPump.CoolantControlButton(
+    cpump3,
+    menu_L3CPC,
+    0, 27,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(160,160,255), level=1, text="Level 1")
+)
+L3CPC_l2 = Core.CoolantPump.CoolantControlButton(
+    cpump3,
+    menu_L3CPC,
+    0, 44,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(130,130,255), level=2, text="Level 2")
+)
+L3CPC_l3 = Core.CoolantPump.CoolantControlButton(
+    cpump3,
+    menu_L3CPC,
+    0, 61,
+    *CPCButtonArgs(),
+    **CPCButtonKwargs(rgb(100,100,255), level=3, text="Level 3")
+)
+
+L3CPC = Group( 
+    menu_L3CPC, menu_L3CPC.title, menu_L3CPC.titleDividerLine,
+    L3CPC_l1, L3CPC_l1.text,
+    L3CPC_l2, L3CPC_l2.text,
+    L3CPC_l3, L3CPC_l3.text
+)
+CPC = Group( L1CPC, L2CPC, L3CPC )
+
 ### Pressure Vents
 pvent1 = Core.PressureVent(core)
 pvent2 = Core.PressureVent(core)
@@ -826,7 +1024,7 @@ pvent4 = Core.PressureVent(core)
 
 menu_PressureVentPanel = Menu(
     menu_LaserControlPanel.right+10, menu_LaserControlPanel.top,
-    155, menu_LaserControlPanel.height,
+    155, 140,
     fill=rgb(170,170,170),
     border=rgb(40,40,40)
 )
@@ -1025,7 +1223,7 @@ PVCP = Group(
     PV3, PV4
 )
 
-Panels = Group( LCP, PVCP )
+Panels = Group( LCP, CPC, PVCP )
 
 ControlRoom = Group( Panels )
 
@@ -1124,7 +1322,7 @@ CoreMonitoring.add(
 
 # Defaults
 
-nav_toggleCoreMonitoring()
+nav_toggleControlRoom()
 
 # Event Listeners
 def onMousePress(x, y):
@@ -1133,40 +1331,55 @@ def onMousePress(x, y):
     nav_CoolantRoom.addEventListener(x, y, onclick=nav_toggleCoolantRoom)
     nav_CoreMonitoring.addEventListener(x, y, onclick=nav_toggleCoreMonitoring)
     
-    # Control Room
-    ## LCP
-    ### Laser 1
-    LCP1_l1.addEventListener(x, y, LCP1_l1.setParentLevel)
-    LCP1_l2.addEventListener(x, y, LCP1_l2.setParentLevel)
-    LCP1_l3.addEventListener(x, y, LCP1_l3.setParentLevel)
-    LCP1_l4.addEventListener(x, y, LCP1_l4.setParentLevel)
-    LCP1_l5.addEventListener(x, y, LCP1_l5.setParentLevel)
-    ### Laser 2
-    LCP2_l1.addEventListener(x, y, LCP2_l1.setParentLevel)
-    LCP2_l2.addEventListener(x, y, LCP2_l2.setParentLevel)
-    LCP2_l3.addEventListener(x, y, LCP2_l3.setParentLevel)
-    LCP2_l4.addEventListener(x, y, LCP2_l4.setParentLevel)
-    LCP2_l5.addEventListener(x, y, LCP2_l5.setParentLevel)
-    ### Laser 3
-    LCP3_l1.addEventListener(x, y, LCP3_l1.setParentLevel)
-    LCP3_l2.addEventListener(x, y, LCP3_l2.setParentLevel)
-    LCP3_l3.addEventListener(x, y, LCP3_l3.setParentLevel)
-    LCP3_l4.addEventListener(x, y, LCP3_l4.setParentLevel)
-    LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
-    
-    ## PV
-    ### PV 1
-    PV1_on.addEventListener(x, y, PV1_on.togglePV)
-    PV1_off.addEventListener(x, y, PV1_off.togglePV)
-    ### PV 2
-    PV2_on.addEventListener(x, y, PV2_on.togglePV)
-    PV2_off.addEventListener(x, y, PV2_off.togglePV)
-    ### PV 3
-    PV3_on.addEventListener(x, y, PV3_on.togglePV)
-    PV3_off.addEventListener(x, y, PV3_off.togglePV)
-    ### PV 4
-    PV4_on.addEventListener(x, y, PV4_on.togglePV)
-    PV4_off.addEventListener(x, y, PV4_off.togglePV)
+    if ControlRoom.visible:
+        # Control Room
+        ## LCP
+        ### Laser 1
+        LCP1_l1.addEventListener(x, y, LCP1_l1.setParentLevel)
+        LCP1_l2.addEventListener(x, y, LCP1_l2.setParentLevel)
+        LCP1_l3.addEventListener(x, y, LCP1_l3.setParentLevel)
+        LCP1_l4.addEventListener(x, y, LCP1_l4.setParentLevel)
+        LCP1_l5.addEventListener(x, y, LCP1_l5.setParentLevel)
+        ### Laser 2
+        LCP2_l1.addEventListener(x, y, LCP2_l1.setParentLevel)
+        LCP2_l2.addEventListener(x, y, LCP2_l2.setParentLevel)
+        LCP2_l3.addEventListener(x, y, LCP2_l3.setParentLevel)
+        LCP2_l4.addEventListener(x, y, LCP2_l4.setParentLevel)
+        LCP2_l5.addEventListener(x, y, LCP2_l5.setParentLevel)
+        ### Laser 3
+        LCP3_l1.addEventListener(x, y, LCP3_l1.setParentLevel)
+        LCP3_l2.addEventListener(x, y, LCP3_l2.setParentLevel)
+        LCP3_l3.addEventListener(x, y, LCP3_l3.setParentLevel)
+        LCP3_l4.addEventListener(x, y, LCP3_l4.setParentLevel)
+        LCP3_l5.addEventListener(x, y, LCP3_l5.setParentLevel)
+        
+        ## PV
+        ### PV 1
+        PV1_on.addEventListener(x, y, PV1_on.togglePV)
+        PV1_off.addEventListener(x, y, PV1_off.togglePV)
+        ### PV 2
+        PV2_on.addEventListener(x, y, PV2_on.togglePV)
+        PV2_off.addEventListener(x, y, PV2_off.togglePV)
+        ### PV 3
+        PV3_on.addEventListener(x, y, PV3_on.togglePV)
+        PV3_off.addEventListener(x, y, PV3_off.togglePV)
+        ### PV 4
+        PV4_on.addEventListener(x, y, PV4_on.togglePV)
+        PV4_off.addEventListener(x, y, PV4_off.togglePV)
+        
+        ## CP
+        ### CP 1
+        L1CPC_l1.addEventListener(x, y, L1CPC_l1.setParentLevel)
+        L1CPC_l2.addEventListener(x, y, L1CPC_l2.setParentLevel)
+        L1CPC_l3.addEventListener(x, y, L1CPC_l3.setParentLevel)
+        ### CP 2
+        L2CPC_l1.addEventListener(x, y, L2CPC_l1.setParentLevel)
+        L2CPC_l2.addEventListener(x, y, L2CPC_l2.setParentLevel)
+        L2CPC_l3.addEventListener(x, y, L2CPC_l3.setParentLevel)
+        ### CP 3
+        L3CPC_l1.addEventListener(x, y, L3CPC_l1.setParentLevel)
+        L3CPC_l2.addEventListener(x, y, L3CPC_l2.setParentLevel)
+        L3CPC_l3.addEventListener(x, y, L3CPC_l3.setParentLevel)
 
 app.stepsPerSecond = 0.75
 app.totalSteps = 0
@@ -1174,16 +1387,19 @@ app.totalSteps = 0
 def onStep():
     # Core
     ## Temp/PSI
-    core.psiFlux -= Core.PressureVent.FLUXPSI * core.activeVents + randrange(3, 6) - sqrt(core.temp)/10
+    core.psiFlux -= Core.PressureVent.FLUXPSI * core.activeVents + randrange(3, 6) - sqrt(abs(core.temp))/10
     
     for laser in core.lasers:
         core.psiFlux += Core.Laser.FLUXPSI * laser.level
-        core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * pow(cbrt(core.temp), 1.1)/1.8
+        core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * pow(cbrt(abs(core.temp)), 1.1)/1.8
         
         core.tempFlux += Core.Laser.FLUXTEMP * laser.level
-        core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(core.temp), 1.1)/10
+        core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(abs(core.temp)), 1.1)/10
         core.tempFlux += pow(core.psi, 1.08)/10
-
+    
+    for cpump in core.cpumps:
+        core.tempFlux -= Core.CoolantPump.FLUXTEMP * cpump.level * core.activePumps + randrange(-2*core.activePumps, 2*core.activePumps)
+        
     core.tempFlux = rounded(core.tempFlux)
     core.temp += core.tempFlux
     
