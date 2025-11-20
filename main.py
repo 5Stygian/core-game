@@ -274,7 +274,7 @@ class Core:
                 if self.parent.sprite is None:
                     self.parent.sprite = self
                 else:
-                    pass
+                    raise ValueError("self.parent.sprite already exists")
     
     class PressureVent:
         FLUXPSI = 8.5
@@ -290,6 +290,8 @@ class Core:
             
             if type(self.parent) != Core:
                 raise TypeError(f"type of parent should be Core, not {self.parent.__class__.__name__}")
+            
+            self.sprite = None
             
             self.parent.pvents.append(self)
         
@@ -311,10 +313,49 @@ class Core:
                     self.parent.on = self.onclickType
                     if self.parent.parent.activeVents < 4:
                         self.parent.parent.activeVents += 1
+                    
+                    self.parent.sprite.border = Core.PressureVent.TOGGLEC["on"]
+                    for _ in range(len(self.parent.sprite.lines)):
+                        self.parent.sprite.lines.children[_].fill = Core.PressureVent.TOGGLEC["on"]
+                
                 if self.onclickType == False and self.parent.parent.activeVents > 0:
                     self.parent.on = self.onclickType
                     self.parent.parent.activeVents -= 1
-
+                    
+                    self.parent.sprite.border = Core.PressureVent.TOGGLEC["off"]
+                    for _ in range(len(self.parent.sprite.lines)):
+                        self.parent.sprite.lines.children[_].fill = Core.PressureVent.TOGGLEC["off"]
+        
+        class Sprite(Rect):
+            def __init__(self, parentVent, parentMenu, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                
+                self.parent = parentVent
+                self.parentMenu = parentMenu
+                
+                self.centerX = (self.parentMenu.centerX - self.width/2) + self.centerX
+                self.centerY = self.parentMenu.top + self.centerY
+                
+                self.fill = rgb(100,100,100)
+                self.border = Core.PressureVent.TOGGLEC["on"]
+                self.borderWidth = 3
+                
+                self.lines = Group(  )
+                for _ in range(3):
+                    self.lines.add(
+                        Line(
+                            self.left+12+self.width/4*_, self.top,
+                            self.left+12+self.width/4*_, self.bottom,
+                            fill=self.border,
+                            lineWidth=5
+                        )
+                    )
+                
+                if self.parent.sprite is None:
+                    self.parent.sprite = self
+                else:
+                    raise ValueError("self.parent.sprite already exists")
+                
 #******************#
 
 # UI
@@ -1038,11 +1079,52 @@ CoreMonitoring.add(
     sprite_Laser3, sprite_Laser3.label
 )
 
+## Pressure Vents
+menu_PressureVents = Menu(
+    250, 40,
+    140, 105,
+    fill=rgb(170,170,170),
+    border=rgb(80,80,80),
+    borderWidth=2
+)
+sprite_pvent1 = Core.PressureVent.Sprite(
+    pvent1,
+    menu_PressureVents,
+    -35, 5,
+    45, 45
+)
+sprite_pvent2 = Core.PressureVent.Sprite(
+    pvent2,
+    menu_PressureVents,
+    35, 5,
+    45, 45
+)
+sprite_pvent3 = Core.PressureVent.Sprite(
+    pvent3,
+    menu_PressureVents,
+    -35, 54,
+    45, 45
+)
+sprite_pvent4 = Core.PressureVent.Sprite(
+    pvent4,
+    menu_PressureVents,
+    35, 54,
+    45, 45
+)
+
+CoreMonitoring.add(
+    menu_PressureVents,
+    sprite_pvent1, sprite_pvent1.lines,
+    sprite_pvent2, sprite_pvent2.lines,
+    sprite_pvent3, sprite_pvent3.lines,
+    sprite_pvent4, sprite_pvent4.lines
+)
+
 #******************#
 
 # Defaults
 
-nav_toggleControlRoom()
+nav_toggleCoreMonitoring()
 
 # Event Listeners
 def onMousePress(x, y):
@@ -1092,12 +1174,11 @@ app.totalSteps = 0
 def onStep():
     # Core
     ## Temp/PSI
-    for pvent in core.pvents:
-        core.psiFlux -= Core.PressureVent.FLUXPSI * core.activeVents
+    core.psiFlux -= Core.PressureVent.FLUXPSI * core.activeVents + randrange(3, 6) - sqrt(core.temp)/10
     
     for laser in core.lasers:
         core.psiFlux += Core.Laser.FLUXPSI * laser.level
-        core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * cbrt(core.temp)/1.8
+        core.psiFlux += (randrange(-1*laser.level, 4*laser.level)/4) * pow(cbrt(core.temp), 1.1)/1.8
         
         core.tempFlux += Core.Laser.FLUXTEMP * laser.level
         core.tempFlux += (randrange(-3*laser.level, 5*laser.level)/3) * pow(sqrt(core.temp), 1.1)/10
